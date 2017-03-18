@@ -36,8 +36,9 @@ func AddMagnetLink(magnet string) error {
 	}
 
 	<-t.GotInfo()
-	t.DownloadAll()
 	log.Printf("Torrent added: %s\n", t.Name())
+
+	Play(t)
 
 	// Output torrent stats
 	go func() {
