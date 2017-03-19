@@ -42,5 +42,6 @@ func (p *Player) Close() error {
 	}
 
 	p.File.Cancel()
+	p.Torrent.Drop()
 	return nil
 }
