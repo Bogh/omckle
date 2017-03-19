@@ -1,6 +1,6 @@
 import { browser, element, by } from 'protractor';
 
-export class FrontendPage {
+export class OmckleUiPage {
   navigateTo() {
     return browser.get('/');
   }

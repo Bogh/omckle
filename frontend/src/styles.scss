@@ -1,7 +1,0 @@
-@mixin bg() {
-    background: #000;
-}
-
-body {
-    @include bg();
-}

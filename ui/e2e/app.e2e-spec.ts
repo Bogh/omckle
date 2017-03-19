@@ -1,10 +1,10 @@
-import { FrontendPage } from './app.po';
+import { OmckleUiPage } from './app.po';
 
-describe('frontend App', () => {
-  let page: FrontendPage;
+describe('omckle-ui App', () => {
+  let page: OmckleUiPage;
 
   beforeEach(() => {
-    page = new FrontendPage();
+    page = new OmckleUiPage();
   });
 
   it('should display message saying app works', () => {
