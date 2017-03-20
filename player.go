@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -10,26 +11,43 @@ import (
 
 	"github.com/anacrolix/missinggo"
 	humanize "github.com/dustin/go-humanize"
+	"github.com/gin-gonic/gin"
 
 	"github.com/anacrolix/torrent"
 )
 
-const (
-	readaheadSize        = 1024 * 1024      // 1MB
-	playerStartThreshold = 10 * 1024 * 1024 // 10MB
-)
-
-var ActivePlayer *Player
+type PlayerState uint8
 
 type Player struct {
 	Torrent *torrent.Torrent
 	File    *torrent.File
 	Reader  io.ReadSeeker
 
-	cmd *exec.Cmd
-
 	cancel context.CancelFunc
+	cmd    *exec.Cmd
+	out    io.ReadCloser
+	in     io.WriteCloser
+
+	state PlayerState
 }
+
+const (
+	readaheadSize        = 1024 * 1024      // 1MB
+	playerStartThreshold = 10 * 1024 * 1024 // 10MB
+
+	StateUnavailable PlayerState = iota
+	StatePlaying
+	StatePaused
+	StateStopped
+)
+
+var (
+	ActivePlayer *Player
+
+	actions = map[string]string{
+		"pause": "pause",
+	}
+)
 
 // Play stream in mplayer
 func Play(t *torrent.Torrent) error {
@@ -57,7 +75,7 @@ func Play(t *torrent.Torrent) error {
 
 	// Start the player once we read at least 10MB
 	go ActivePlayer.watchAndRun()
-	go ActivePlayer.outputStats()
+	// go ActivePlayer.outputStats()
 	return nil
 }
 
@@ -111,16 +129,26 @@ func (p *Player) Run() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancel = cancel
+
 	// TODO Bogdan: Get dynamic stream link
-	p.cmd = exec.CommandContext(
-		ctx, "mplayer", "http://localhost:8080/stream")
-	p.cmd.Stdout = os.Stdout
+	cmd := exec.CommandContext(ctx,
+		"mplayer", "-quiet", "-slave", "http://localhost:8080/stream")
+	cmd.Stdout = os.Stdout
+
+	if in, err := cmd.StdinPipe(); err == nil {
+		p.in = in
+	} else {
+		log.Println("Cannot obtain player stdin: ", err)
+		return err
+	}
+
 	go func() {
 		if err := p.cmd.Run(); err != nil {
 			log.Println("Running player command error: ", err)
 		}
 	}()
 
+	p.cmd = cmd
 	return nil
 }
 
@@ -134,5 +162,40 @@ func (p *Player) watchAndRun() {
 			return
 		}
 		time.Sleep(5 * time.Second)
+	}
+}
+
+func (p *Player) action(c *gin.Context, action string) error {
+	if p.in == nil {
+		return fmt.Errorf("No `in` pipe for player.")
+	}
+
+	if f, ok := actions[action]; !ok {
+		return fmt.Errorf("Unknown action: %s.", action)
+	} else {
+		action = f
+	}
+
+	action += "\n"
+
+	if _, err := io.WriteString(p.in, action); err != nil {
+		log.Printf("Error executing action %s: %s\n", action, err)
+		return err
+	}
+	log.Println("Action executed: ", action)
+
+	return nil
+}
+
+func PlayerAPIAction(c *gin.Context) {
+	if ActivePlayer == nil {
+		c.Error(fmt.Errorf("No active player. Must upload a torrent first."))
+		return
+	}
+	action := c.Param("action")
+
+	if err := ActivePlayer.action(c, action); err != nil {
+		c.Error(err)
+		return
 	}
 }

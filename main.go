@@ -72,7 +72,10 @@ func main() {
 		})
 	}
 
-	// player := router.Group("/player")
+	player := router.Group("/player", gin.ErrorLogger())
+	{
+		player.POST("/:action", PlayerAPIAction)
+	}
 
 	router.Run(":8080")
 }
