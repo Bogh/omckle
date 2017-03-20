@@ -45,7 +45,10 @@ var (
 	ActivePlayer *Player
 
 	actions = map[string]string{
-		"pause": "pause",
+		"pause":           "pause",
+		"get_file_name":   "get_file_name",
+		"get_percent_pos": "get_percent_pos",
+		"get_volume":      "get_property volume",
 	}
 )
 
