@@ -9,6 +9,16 @@ import (
 )
 
 func main() {
+	err := Check()
+	if err != nil {
+		log.Fatalln("Check method failed: ", err)
+	}
+
+	err = InitClient()
+	if err != nil {
+		log.Fatalln("Error initializing torrent client: ", err)
+	}
+
 	router := gin.Default()
 	router.Static("/static", "./static")
 	router.LoadHTMLGlob("templates/*")
@@ -61,5 +71,12 @@ func main() {
 			http.ServeContent(c.Writer, c.Request, ActivePlayer.File.Path(), time.Time{}, ActivePlayer.Reader)
 		})
 	}
+
+	// player := router.Group("/player")
+
 	router.Run(":8080")
+}
+
+func Check() error {
+	return nil
 }
